@@ -1,0 +1,1 @@
+worker: jruby worker.rb
