@@ -41,7 +41,15 @@ class Worker
     puts "Listening for new data"
     loop do
       if doc = cursor.next
-        process_task doc
+        # Check that task hasn't been picked up by another worker yet
+        # and if not, set the 'assigned' indicator to true
+        is_not_assigned = @tasks.find_and_modify( \
+          {'query' => {'_id' => doc['_id'], 'assigned' => false}, 
+           'update' => {'$set' => {'assigned' => true}}, 
+           'new' => true})
+        if is_not_assigned
+          process_task doc
+        end
       else
         sleep 1
       end
