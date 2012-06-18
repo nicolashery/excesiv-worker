@@ -23,7 +23,7 @@ class Worker
   def process_task(doc)
     task_id = doc['_id']
     puts "Processing task #{task_id}"
-    sleep 5 # Simulate some processing time
+    sleep 3 # Simulate some processing time
     @results.insert({'task' => {'_id' => task_id},
                     'message' => doc['message'].reverse})
     puts "Done with task #{task_id}"
@@ -43,6 +43,7 @@ class Worker
       if doc = cursor.next
         # Check that task hasn't been picked up by another worker yet
         # and if not, set the 'assigned' indicator to true
+        # (find_and_modify returns nil if not found, the doc otherwise)
         is_not_assigned = @tasks.find_and_modify( \
           {'query' => {'_id' => doc['_id'], 'assigned' => false}, 
            'update' => {'$set' => {'assigned' => true}}, 
