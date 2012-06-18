@@ -1,6 +1,6 @@
 require 'bundler/setup'
 require 'uri'
-require 'jmongo'
+require 'mongo'
 
 STDOUT.sync = true # Write in real-time
 
@@ -21,13 +21,12 @@ class Worker
   end
 
   def process_task(doc)
-    task_oid = doc['_id']
-    puts "Processing task #{task_oid}"
-    task_id = BSON::ObjectId.from_string(task_oid)
+    task_id = doc['_id']
+    puts "Processing task #{task_id}"
     sleep 5 # Simulate some processing time
     @results.insert({'task' => {'_id' => task_id},
                     'message' => doc['message'].reverse})
-    puts "Done with task #{task_oid}"
+    puts "Done with task #{task_id}"
   end
 
   def run
@@ -35,17 +34,12 @@ class Worker
     # First loop is to go to the end of the collection
     puts "Going to end of collection"
     cursor = Mongo::Cursor.new(@tasks, :timeout => false, :tailable => true)
-    # Note: we can't test on cursor.next here, because there might be some
-    # residual 'poison docs' in the collection that return nil, so it would
-    # stop us from going to the end of the collection
     cursor.count.times do
       cursor.next
     end
     # Second loop keeps going, waiting for new data or Ctrl+C
     puts "Listening for new data"
     loop do
-      # Note: when we are at the end of the collection, jmongo will insert
-      # a 'poison doc' and cursor.next will return nil
       if doc = cursor.next
         process_task doc
       else
