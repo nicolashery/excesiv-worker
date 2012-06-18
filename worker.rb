@@ -5,7 +5,7 @@ require 'mongo'
 STDOUT.sync = true # Write in real-time
 
 # Envrionment variables for config
-mongodb_uri = ENV['MONGODB_URI'] || 'mongodb://localhost/excesiv'
+mongodb_uri = ENV['MONGOLAB_URI'] || 'mongodb://localhost/excesiv'
 
 class Worker
 
