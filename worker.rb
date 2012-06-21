@@ -9,7 +9,7 @@ mongodb_uri = ENV['MONGOLAB_URI'] || 'mongodb://localhost/excesiv'
 
 class Worker
 
-  def initialize(mongodb_uri='mongodb://localhost/excesiv')
+  def initialize(mongodb_uri)
     # Parse mongdb_uri
     uri = URI.parse(mongodb_uri)
     # Connect to database
@@ -18,13 +18,27 @@ class Worker
     # Collections
     @tasks = db.collection('tasks')
     @results = db.collection('results')
+    # File system
+    @fs = Mongo::Grid.new(db)
+    @fs_meta = db.collection('fs.files')
   end
 
   def process_task(doc)
     task_id = doc['_id']
-    puts "Processing task #{task_id}"
+    template = doc['template']
+    puts "Processing task #{task_id}, template #{template}"
     sleep 3 # Simulate some processing time
+    # Get the correct template from MongoDB
+    template_meta = @fs_meta.find_one({'filename' => template, 
+                            'template' => true})
+    template_id = template_meta['_id']
+    f = @fs.get(template_id)
+    # Save result file back to database
+    file_id = @fs.put(f, :filename => "result_#{template}", 
+                      :result => true)
+    # Notify result queue that we are finished, with link to file
     @results.insert({'task' => {'_id' => task_id},
+                    'file' => {'_id' => file_id},
                     'message' => doc['message'].reverse})
     puts "Done with task #{task_id}"
   end
