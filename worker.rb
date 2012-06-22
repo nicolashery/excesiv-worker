@@ -30,12 +30,12 @@ class Worker
     sleep 3 # Simulate some processing time
     # Get the correct template from MongoDB
     template_meta = @fs_meta.find_one({'filename' => template, 
-                            'template' => true})
+                            'label' => 'template'})
     template_id = template_meta['_id']
     f = @fs.get(template_id)
     # Save result file back to database
     file_id = @fs.put(f, :filename => "result_#{template}", 
-                      :result => true)
+                      :label => 'result')
     # Notify result queue that we are finished, with link to file
     @results.insert({'task' => {'_id' => task_id},
                     'file' => {'_id' => file_id},
