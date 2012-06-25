@@ -26,6 +26,7 @@ class Worker
   def process_task(doc)
     task_id = doc['_id']
     template = doc['template']
+    attachment_filename = doc['attachment_filename']
     puts "Processing task #{task_id}, template #{template}"
     sleep 3 # Simulate some processing time
     # Get the correct template from MongoDB
@@ -34,8 +35,10 @@ class Worker
     template_id = template_meta['_id']
     f = @fs.get(template_id)
     # Save result file back to database
-    file_id = @fs.put(f, :filename => "result_#{template}", 
-                      :label => 'result')
+    file_id = @fs.put(f, :filename => "result_#{template}",
+                      :content_type  =>  f.content_type,
+                      :label => 'result',
+                      :attachment_filename => attachment_filename)
     # Notify result queue that we are finished, with link to file
     @results.insert({'task' => {'_id' => task_id},
                     'file' => {'_id' => file_id},
