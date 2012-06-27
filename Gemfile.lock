@@ -4,9 +4,11 @@ GEM
     bson (1.6.4-java)
     mongo (1.6.4)
       bson (~> 1.6.4)
+    require_all (1.2.1)
 
 PLATFORMS
   java
 
 DEPENDENCIES
   mongo
+  require_all

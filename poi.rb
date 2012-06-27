@@ -1,5 +1,5 @@
 # Wrapper around selected classes of the Apache POI Excel library
-
+require 'bundler/setup'
 require 'java'
 require 'require_all'
 # Require Apache POI jars
