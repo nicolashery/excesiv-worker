@@ -11,15 +11,37 @@ mongodb_uri = ENV['MONGOLAB_URI'] || 'mongodb://localhost/excesiv'
 
 class Worker
 
+  # Config
+  CAPPED_COLLECTION_SIZE = 1000000
+  CAPPED_COLLECTION_MAX = 3
+
   def initialize(mongodb_uri)
     # Parse mongdb_uri
     uri = URI.parse(mongodb_uri)
     # Connect to database
     connection = Mongo::Connection.from_uri(mongodb_uri)
     @db = connection.db(uri.path.gsub(/^\//, ''))
-    # Collections
-    @tasks = @db.collection('tasks')
-    @results = @db.collection('results')
+    # Create capped collections unless they exists already
+    if @db.collection_names.include? 'tasks'
+      @tasks = @db.collection('tasks')
+    else
+      @tasks = @db.create_collection('tasks', :capped => true, 
+                                :autoIndexId => true,
+                                :size => CAPPED_COLLECTION_SIZE, 
+                                :max => CAPPED_COLLECTION_MAX)
+      # Insert a dummy document just in case because some drivers have trouble 
+      # with empty capped collections
+      @tasks.insert({'init' => true})
+    end
+    if @db.collection_names.include? 'results'
+      @results = @db.collection('results')
+    else
+      @results = @db.create_collection('results', :capped => true, 
+                                :autoIndexId => true,
+                                :size => CAPPED_COLLECTION_SIZE, 
+                                :max => CAPPED_COLLECTION_MAX)
+      @results.insert({'init' => true})
+    end
     # File system
     @fs = Mongo::Grid.new(@db)
     @fs_meta = @db.collection('fs.files')
