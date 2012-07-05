@@ -1,0 +1,15 @@
+name: excesiv-worker
+
+framework:
+  type: buildpack
+
+processes:
+  web: jruby worker.rb
+
+services:
+  mongo-excesiv: mongodb
+
+ignores: [".git"]
+
+env:
+  BUILDPACK_URL: https://github.com/nicolahery/heroku-buildpack-jruby.git
