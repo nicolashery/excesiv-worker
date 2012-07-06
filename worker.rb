@@ -51,43 +51,55 @@ class Worker
 
   def process_task(doc)
     task_id = doc['_id']
-    template = doc['template']
-    attachment_filename = doc['attachment_filename']
-    data = doc['data']
-    puts "Processing task #{task_id}, template #{template}"
-    #sleep 3 # Simulate some processing time
-    # Get the correct template from the database
-    template_meta = @fs_meta.find_one({'filename' => template, 
-                            'label' => 'template'})
-    template_id = template_meta['_id']
-    f_in = @fs.get(template_id)
-    content_type= f_in.content_type
-    # Convert Ruby IO object to Java InputStream
-    # http://jruby.org/apidocs/org/jruby/util/IOInputStream.html
-    f_in = org.jruby.util.IOInputStream.new(f_in)
-    # Generate workbook from template
-    wb = Poi::XSSFWorkbook.new(f_in)
-    f_in.close()
-    generate_workbook(wb, data)
-    # Save result file back to database
-    f_out = @fs_store.open("result_#{template}", 'w', 
-                          :content_type  =>  content_type,
-                          :label => 'result',
-                          :attachment_filename => attachment_filename)
-    file_id = f_out.files_id
-    # Convert Ruby IO object to Java OutputStream
-    # http://jruby.org/apidocs/org/jruby/util/IOOutputStream.html
-    f_out = org.jruby.util.IOOutputStream.new(f_out)
-    wb.write(f_out)
-    f_out.close()
-    # Notify result queue that we are finished, with link to file
-    @results.insert({'task' => {'_id' => task_id},
-                    'file' => {'_id' => file_id}})
+    task_type = doc['type']
+    if task_type == 'write'
+      template = doc['template']
+      attachment_filename = doc['attachment_filename']
+      data = doc['data']
+      puts "Processing task #{task_id}"
+      #sleep 3 # Simulate some processing time
+      # Get the correct template from the database
+      template_meta = @fs_meta.find_one({'filename' => template, 
+                              'label' => 'template'})
+      template_id = template_meta['_id']
+      f_in = @fs.get(template_id)
+      content_type= f_in.content_type
+      # Convert Ruby IO object to Java InputStream
+      # http://jruby.org/apidocs/org/jruby/util/IOInputStream.html
+      f_in = org.jruby.util.IOInputStream.new(f_in)
+      # Generate workbook from template
+      wb = Poi::XSSFWorkbook.new(f_in)
+      f_in.close()
+      write_workbook(wb, data)
+      # Save result file back to database
+      f_out = @fs_store.open("result_#{template}", 'w', 
+                            :content_type  =>  content_type,
+                            :label => 'result',
+                            :attachment_filename => attachment_filename)
+      file_id = f_out.files_id
+      # Convert Ruby IO object to Java OutputStream
+      # http://jruby.org/apidocs/org/jruby/util/IOOutputStream.html
+      f_out = org.jruby.util.IOOutputStream.new(f_out)
+      wb.write(f_out)
+      f_out.close()
+      # Result is a link to generated file
+      result = {'task_id' => task_id, 'file_id' => file_id}
+    elsif task_type == 'read'
+      file_id = doc['file_id']
+      f_in = @fs.get(file_id)
+      f_in = org.jruby.util.IOInputStream.new(f_in)
+      wb = Poi::XSSFWorkbook.new(f_in)
+      f_in.close()
+      data = read_workbook(wb)
+      result = {'task_id' => task_id, 'data' => data}
+    end
+    # Send result back in MongoDB queue
+    @results.insert(result)
     puts "Done with task #{task_id}"
   end
 
   # Populate workbook with data
-  def generate_workbook(wb, data={})
+  def write_workbook(wb, data={})
     message = data['message'] or 'Hello World!'
 
     ws = wb.getSheetAt(0)
@@ -99,6 +111,17 @@ class Worker
     row = ws.getRow(2)
     cell = row.getCell(1)
     cell.setCellValue(message.reverse)
+  end
+
+  # Read data from workbook
+  def read_workbook(wb)
+    data = {}
+    ws = wb.getSheetAt(0)
+    row = ws.getRow(0)
+    cell = row.getCell(1)
+    # Optional response key in data is sent back to web client
+    data['response'] = "#{cell}".reverse
+    data
   end
 
   def run
