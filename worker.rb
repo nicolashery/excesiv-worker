@@ -52,12 +52,11 @@ class Worker
   def process_task(doc)
     task_id = doc['_id']
     task_type = doc['type']
+    puts "Processing task #{task_id}"
     if task_type == 'write'
       template = doc['template']
       attachment_filename = doc['attachment_filename']
       data = doc['data']
-      puts "Processing task #{task_id}"
-      #sleep 3 # Simulate some processing time
       # Get the correct template from the database
       template_meta = @fs_meta.find_one({'filename' => template, 
                               'label' => 'template'})
