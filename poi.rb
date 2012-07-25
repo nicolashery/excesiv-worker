@@ -7,4 +7,5 @@ require_rel 'lib/poi/*.jar'
 
 module Poi
   XSSFWorkbook = Java::OrgApachePoiXssfUsermodel::XSSFWorkbook
-end
+  AreaReference = Java::OrgApachePoiSsUtil::AreaReference
+end 
