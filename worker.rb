@@ -2,7 +2,7 @@ require 'bundler/setup'
 require 'uri'
 require 'mongo'
 
-require_relative 'poi'
+require_relative 'excesiv'
 
 STDOUT.sync = true # Write in real-time
 
@@ -17,6 +17,8 @@ class Worker
   CAPPED_COLLECTION_MAX = 3
 
   def initialize(mongodb_uri)
+    # Core object to use Excel
+    @xs = Excesiv.new
     # Parse mongdb_uri
     uri = URI.parse(mongodb_uri)
     # Connect to database
@@ -63,12 +65,7 @@ class Worker
       template_id = template_meta['_id']
       f_in = @fs.get(template_id)
       content_type= f_in.content_type
-      # Convert Ruby IO object to Java InputStream
-      # http://jruby.org/apidocs/org/jruby/util/IOInputStream.html
-      f_in = org.jruby.util.IOInputStream.new(f_in)
-      # Generate workbook from template
-      wb = Poi::XSSFWorkbook.new(f_in)
-      f_in.close()
+      wb = @xs.open_wb(f_in)
       write_workbook(wb, data)
       # Save result file back to database
       f_out = @fs_store.open("result_#{template}", 'w', 
@@ -76,19 +73,13 @@ class Worker
                             :label => 'result',
                             :attachment_filename => attachment_filename)
       file_id = f_out.files_id
-      # Convert Ruby IO object to Java OutputStream
-      # http://jruby.org/apidocs/org/jruby/util/IOOutputStream.html
-      f_out = org.jruby.util.IOOutputStream.new(f_out)
-      wb.write(f_out)
-      f_out.close()
+      @xs.save_wb(wb, f_out)
       # Result is a link to generated file
       result = {'task_id' => task_id, 'file_id' => file_id}
     elsif task_type == 'read'
       file_id = doc['file_id']
       f_in = @fs.get(file_id)
-      f_in = org.jruby.util.IOInputStream.new(f_in)
-      wb = Poi::XSSFWorkbook.new(f_in)
-      f_in.close()
+      wb = @xs.open_wb(f_in)
       data = read_workbook(wb)
       result = {'task_id' => task_id, 'data' => data}
     end
