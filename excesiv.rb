@@ -44,13 +44,11 @@ class Excesiv
     instructions = {
       'w' => {
         'header' => [],
-        'data' => [],
-        'formula' => []
+        'rows' => []
       },
       'r' => {
         'header' => [],
-        'data' => [],
-        'formula' => []
+        'rows' => []
       }
     }
     ws = wb.getSheetAt(0)
@@ -75,6 +73,7 @@ class Excesiv
         instruction['columns'] = columns
         # For header cells only
         if tags.include?('header')
+          instruction['type'] = 'header'
           # Capture target row number
           rows = cellrefs.map{|c| c.getRow()}
           instruction['row'] = rows[0]
@@ -84,8 +83,8 @@ class Excesiv
           j = columns[0]
           cell = ws.getRow(first_row).getCell(j)
           instruction['style'] = cell.getCellStyle()
-          # For formula row cells only
           if tags.include?('formula')
+            instruction['type'] = 'formula'
             # Formula is assumed to be the same for all columns of instruction,
             # use first cell
             if cell.getCellType() != 3 # Blank cell type
@@ -93,6 +92,8 @@ class Excesiv
             else
               instruction['formula'] = ''
             end
+          else
+            instruction['type'] = 'data'
           end
           # For instruction with more than 1 column, allow last cell to be 
           # styled differently
@@ -106,24 +107,82 @@ class Excesiv
         if tags.include?('w')
           if tags.include?('header')
             instructions['w']['header'] << instruction
-          elsif tags.include?('data')
-            instructions['w']['data'] << instruction
-          elsif tags.include?('formula')
-            instructions['w']['formula'] << instruction
+          elsif not (tags & ['data', 'formula']).empty?
+            instructions['w']['rows'] << instruction
           end
         end
         if tags.include?('r')
           if tags.include?('header')
             instructions['r']['header'] << instruction
-          elsif tags.include?('data')
-            instructions['r']['data'] << instruction
-          elsif tags.include?('formula')
-            instructions['r']['formula'] << instruction
+          elsif not (tags & ['data', 'formula']).empty?
+            instructions['r']['rows'] << instruction
           end
         end
       end
     end
     instructions
+  end
+
+  # Fill template workbook with data, use first worksheet
+  def write_wb(wb, data={'header'=>{}, 'rows'=>[]})
+    ws = wb.getSheetAt(0)
+    # Get instructions from named ranges in workbook
+    instructions = get_instructions(wb)
+    # Header
+    for instruction in instructions['w']['header']
+      name = instruction['name']
+      if data['header'].has_key?(name)
+        values = data['header'][name]
+        # Convert single values to list to be able to loop
+        values = [*values]
+        row = ws.getRow(instruction['row'])
+        columns = instruction['columns']
+        # Fill cells with values
+        columns.zip(values).each do |j, value|
+          cell = row.getCell(j)
+          cell.setCellValue(value)
+        end
+      end
+    end
+    # Rows
+    i = get_first_row(wb)
+    for row_data in data['rows']
+      row = ws.getRow(i) ? ws.getRow(i) : ws.createRow(i)
+      for instruction in instructions['w']['rows']
+        columns = instruction['columns']
+        style = instruction['style']
+        # Fill cells with values or formula
+        if instruction['type'] == 'data'
+          values = row_data[instruction['name']] 
+          values = [*values]
+          columns.zip(values).each do |j, value|
+            cell = row.getCell(j) ? row.getCell(j) : row.createCell(j)
+            cell.setCellValue(value)
+            cell.setCellStyle(style)
+          end
+        else
+          formula = instruction['formula']
+          columns.each do |j|
+            cell = row.getCell(j) ? row.getCell(j) : row.createCell(j)
+            cell.setCellFormula(formula)
+            cell.setCellStyle(style)
+          end
+        end
+        # For instructions on multiple columns, 
+        # last cell can have different style 
+        if columns.length > 1
+          j = columns[-1]
+          style = instruction['style_last']
+          cell = row.getCell(j)
+          cell.setCellStyle(style)
+        end
+      end
+      # Next row
+      i = i + 1
+    end
+    # Force recalulation of all formulas
+    wb.setForceFormulaRecalculation(true)
+    wb
   end
 
   def test
@@ -134,7 +193,8 @@ class Excesiv
 
 end
 
-#xs = Excesiv.new
-
-#xs.test
+if __FILE__ == $0
+  xs = Excesiv.new
+  xs.test
+end
 

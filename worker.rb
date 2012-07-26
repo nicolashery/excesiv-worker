@@ -66,7 +66,7 @@ class Worker
       f_in = @fs.get(template_id)
       content_type= f_in.content_type
       wb = @xs.open_wb(f_in)
-      write_workbook(wb, data)
+      @xs.write_wb(wb, data)
       # Save result file back to database
       f_out = @fs_store.open("result_#{template}", 'w', 
                             :content_type  =>  content_type,
