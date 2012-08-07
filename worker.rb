@@ -80,38 +80,12 @@ class Worker
       file_id = doc['file_id']
       f_in = @fs.get(file_id)
       wb = @xs.open_wb(f_in)
-      data = read_workbook(wb)
+      data = @xs.read_wb(wb)
       result = {'task_id' => task_id, 'data' => data}
     end
     # Send result back in MongoDB queue
     @results.insert(result)
     puts "Done with task #{task_id}"
-  end
-
-  # Populate workbook with data
-  def write_workbook(wb, data={})
-    message = data['message'] or 'Hello World!'
-
-    ws = wb.getSheetAt(0)
-
-    row = ws.getRow(0)
-    cell = row.getCell(1)
-    cell.setCellValue(message)
-
-    row = ws.getRow(2)
-    cell = row.getCell(1)
-    cell.setCellValue(message.reverse)
-  end
-
-  # Read data from workbook
-  def read_workbook(wb)
-    data = {}
-    ws = wb.getSheetAt(0)
-    row = ws.getRow(0)
-    cell = row.getCell(1)
-    # Optional response key in data is sent back to web client
-    data['response'] = "#{cell}".reverse
-    data
   end
 
   def run

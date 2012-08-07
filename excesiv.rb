@@ -30,6 +30,57 @@ class Excesiv
     wb.write(f_out)
   end
 
+  # Helper to return cell value based on cell type
+  # For formula cells, the last calcluated result by Excel is returned
+  # Date values will be returned as a Float, and will have to be converted
+  # using Excel's method for storing dates (see Excel documentation)
+  def get_cell_value(cell)
+    if not cell
+      value = nil
+    else
+      cell_type = cell.getCellType()
+      # Formula cells
+      if cell_type == Poi::CELL_TYPE_FORMULA
+        # Cached formula result will be a String,
+        # need to convert it based on type
+        cell_type = cell.getCachedFormulaResultType()
+        value = cell.getRawValue()
+        case cell_type
+        when Poi::CELL_TYPE_NUMERIC
+          value = Float(value)
+        when Poi::CELL_TYPE_STRING
+          # Do nothing
+        when Poi::CELL_TYPE_BLANK
+          value = ''
+        when Poi::CELL_TYPE_BOOLEAN
+          # Formula result will be '1' or '0'
+          value = value == '1' ? true : false
+        when Poi::CELL_TYPE_ERROR
+          # Do nothing
+        else
+          value = nil
+        end
+      # Value cells
+      else
+        case cell_type
+        when Poi::CELL_TYPE_NUMERIC
+          value = cell.getNumericCellValue()
+        when Poi::CELL_TYPE_STRING
+          value = cell.getStringCellValue()
+        when Poi::CELL_TYPE_BLANK
+          value = ''
+        when Poi::CELL_TYPE_BOOLEAN
+          value = cell.getBooleanCellValue()
+        when Poi::CELL_TYPE_ERROR
+          value = cell.getErrorCellString()
+        else
+          value = nil
+        end
+      end
+    end
+    value
+  end
+
   # Return the number of the first row defined in the workbook names
   def get_first_row(wb)
     # Rows start at 0 in API, at 1 in Excel, so substract 1
@@ -87,7 +138,7 @@ class Excesiv
             instruction['type'] = 'formula'
             # Formula is assumed to be the same for all columns of instruction,
             # use first cell
-            if cell.getCellType() != 3 # Blank cell type
+            if cell.getCellType() == 2 # Formula cell type
               instruction['formula'] = cell.getCellFormula()
             else
               instruction['formula'] = ''
@@ -184,13 +235,84 @@ class Excesiv
     wb.setForceFormulaRecalculation(true)
     wb
   end
-
-  def test
-    f_in = File.open('test.xlsx', 'r')
-    wb = open_wb(f_in)
-    puts get_instructions(wb)
+  
+  # Read data from workbook, use first worksheet
+  def read_wb(wb)
+    data = {'header' => {}, 'rows' => []}
+    ws = wb.getSheetAt(0)
+    # Get instructions from named ranges in workbook
+    instructions = get_instructions(wb)
+    # Header
+    for instruction in instructions['r']['header']
+      name = instruction['name']
+      row = ws.getRow(instruction['row'])
+      columns = instruction['columns']
+      # Read cell values
+      values = []
+      for j in columns
+        cell = row.getCell(j)
+        values << get_cell_value(cell)
+      end
+      # If there is only one columns, convert back to single value
+      if values.length == 1
+        values = values[0]
+      end
+      data['header'][name] = values
+    end
+    # Rows
+    first_row = get_first_row(wb)
+    last_row = ws.getLastRowNum()
+    for i in (first_row..last_row)
+      row = ws.getRow(i)
+      row_data = {}
+      for instruction in instructions['r']['rows']
+        name = instruction['name']
+        columns = instruction['columns']
+        # Read cells values
+        # Note: the "formula r" instruction is equivalent to "data r"
+        values = []
+        for j in columns
+          cell = row.getCell(j)
+          values << get_cell_value(cell)
+        end
+        if values.length == 1
+          values = values[0]
+        end
+        row_data[name] = values
+      end
+      data['rows'] << row_data
+    end
+    data
   end
 
+  def test_cellvalue
+    STDOUT.sync = true
+    f_in = File.open('test_cellvalue.xlsx', 'r')
+    f_in = org.jruby.util.IOInputStream.new(f_in)
+    wb = Poi::XSSFWorkbook.new(f_in)
+    ws = wb.getSheetAt(0)
+    puts "Test value cells"
+    for i in (1..6)
+      cell = ws.getRow(i).getCell(2)
+      val = get_cell_value(cell)
+      puts "cell #{i}"
+      cell_type = cell ? cell.getCellType() : nil
+      puts "cell type #{cell_type}"
+      puts "value #{val}"
+      puts "value class #{val.class}"
+    end
+    puts "Test formula cells"
+    for i in (1..6)
+      cell = ws.getRow(i).getCell(3)
+      val = get_cell_value(cell)
+      puts "cell #{i}"
+      cell_type = cell ? cell.getCellType() : nil
+      puts "cell type #{cell_type}"
+      puts "cached formula result type #{cell.getCachedFormulaResultType()}"
+      puts "value #{val}"
+      puts "value class #{val.class}"
+    end
+  end
 end
 
 if __FILE__ == $0
