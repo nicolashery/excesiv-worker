@@ -13,6 +13,7 @@ mongodb_uri = ENV['MONGOLAB_URI'] || ENV['MONGOLAB_URI'] ||
 class Worker
 
   # Config
+  APP_DEBUG = false
   CAPPED_COLLECTION_SIZE = 1000000
   CAPPED_COLLECTION_MAX = 3
 
@@ -54,7 +55,6 @@ class Worker
   def process_task(doc)
     task_id = doc['_id']
     task_type = doc['type']
-    puts "Processing task #{task_id}"
     if task_type == 'write'
       template = doc['template']
       attachment_filename = doc['attachment_filename']
@@ -85,7 +85,6 @@ class Worker
     end
     # Send result back in MongoDB queue
     @results.insert(result)
-    puts "Done with task #{task_id}"
   end
 
   def run
@@ -108,7 +107,26 @@ class Worker
            'update' => {'$set' => {'assigned' => true}}, 
            'new' => true})
         if is_not_assigned
-          process_task doc
+          task_id = doc['_id']
+          puts "Processing task #{task_id}"
+          # In production, keep worker alive if processing task fails
+          if APP_DEBUG
+            process_task doc
+            puts "Done with task #{task_id}"
+          else
+            begin
+              process_task doc
+              puts "Done with task #{task_id}"
+            rescue => exception
+              # Send error message back to result queue
+              result = {'task_id' => task_id, 
+                        'error' => exception.message}
+              @results.insert(result)
+              puts "Error with task #{task_id}"
+              puts exception.message
+              puts exception.backtrace
+            end
+          end
         end
       else
         sleep 1
