@@ -47,6 +47,10 @@ class Excesiv
         value = cell.getRawValue()
         case cell_type
         when Poi::CELL_TYPE_NUMERIC
+          # Apparently a formula returning 0 gives a nil value, fix it
+          if value.nil?
+            value = 0
+          end
           value = Float(value)
         when Poi::CELL_TYPE_STRING
           # Do nothing
