@@ -3,6 +3,7 @@ require 'uri'
 require 'mongo'
 
 require_relative 'excesiv'
+require_relative 'version'
 
 STDOUT.sync = true # Write in real-time
 
@@ -88,7 +89,8 @@ class Worker
   end
 
   def run
-    puts "Excesiv worker starting..."
+    puts "Excesiv v#{EXCESIV_VERSION}"
+    puts "Worker starting..."
     # First loop is to go to the end of the collection
     puts "Going to end of collection"
     cursor = Mongo::Cursor.new(@tasks, :timeout => false, :tailable => true)
