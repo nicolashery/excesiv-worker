@@ -8,7 +8,7 @@ require_relative 'version'
 STDOUT.sync = true # Write in real-time
 
 # Envrionment variables for config
-mongodb_uri = ENV['MONGOLAB_URI'] || ENV['MONGOLAB_URL'] || 
+mongodb_uri = ENV['MONGOLAB_URI'] || ENV['MONGODB_URL'] || 
               'mongodb://localhost/excesiv'
 
 class Worker
