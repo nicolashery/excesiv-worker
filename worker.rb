@@ -15,8 +15,8 @@ class Worker
 
   # Config
   APP_DEBUG = false
-  CAPPED_COLLECTION_SIZE = 1000000
-  CAPPED_COLLECTION_MAX = 3
+  CAPPED_COLLECTION_SIZE = 8000000
+  CAPPED_COLLECTION_MAX = 100
 
   def initialize(mongodb_uri)
     # Core object to use Excel
