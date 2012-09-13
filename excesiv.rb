@@ -30,6 +30,17 @@ class Excesiv
     wb.write(f_out)
   end
 
+  # Helper to set cell value, turning nil values into empty strings
+  # POI seems to have trouble with setting cells to nil values, 
+  # and sometimes crashes with the following error:
+  # DateUtil.java:94:in `getExcelDate': java.lang.NullPointerException
+  def set_cell_value(cell, value)
+    if value.nil?
+      value = ''
+    end
+    cell.setCellValue(value)
+  end
+
   # Helper to return cell value based on cell type
   # For formula cells, the last calcluated result by Excel is returned
   # Date values will be returned as a Float, and will have to be converted
@@ -195,7 +206,7 @@ class Excesiv
         # Fill cells with values
         columns.zip(values).each do |j, value|
           cell = row.getCell(j)
-          cell.setCellValue(value)
+          set_cell_value(cell, value)
         end
       end
     end
@@ -212,7 +223,7 @@ class Excesiv
           values = [*values]
           columns.zip(values).each do |j, value|
             cell = row.getCell(j) ? row.getCell(j) : row.createCell(j)
-            cell.setCellValue(value)
+            set_cell_value(cell, value)
             cell.setCellStyle(style)
           end
         else
