@@ -1,0 +1,4 @@
+#!/usr/bin/env jruby
+
+require 'excesiv'
+Excesiv::Worker.new.run

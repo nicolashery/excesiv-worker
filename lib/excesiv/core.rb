@@ -1,8 +1,10 @@
 require 'bundler/setup'
 
-require_relative 'poi'
+# For the excesiv-worker.jar to work on Stackato need to add this to load path
+$:.push File.expand_path('../..', __FILE__)
+require 'poi'
 
-class Excesiv
+class Excesiv::Core
 
   # Open workbook from file object or file path
   def open_wb(f_in)
@@ -300,38 +302,4 @@ class Excesiv
     data
   end
 
-  def test_cellvalue
-    STDOUT.sync = true
-    f_in = File.open('test_cellvalue.xlsx', 'r')
-    f_in = org.jruby.util.IOInputStream.new(f_in)
-    wb = Poi::XSSFWorkbook.new(f_in)
-    ws = wb.getSheetAt(0)
-    puts "Test value cells"
-    for i in (1..6)
-      cell = ws.getRow(i).getCell(2)
-      val = get_cell_value(cell)
-      puts "cell #{i}"
-      cell_type = cell ? cell.getCellType() : nil
-      puts "cell type #{cell_type}"
-      puts "value #{val}"
-      puts "value class #{val.class}"
-    end
-    puts "Test formula cells"
-    for i in (1..6)
-      cell = ws.getRow(i).getCell(3)
-      val = get_cell_value(cell)
-      puts "cell #{i}"
-      cell_type = cell ? cell.getCellType() : nil
-      puts "cell type #{cell_type}"
-      puts "cached formula result type #{cell.getCachedFormulaResultType()}"
-      puts "value #{val}"
-      puts "value class #{val.class}"
-    end
-  end
 end
-
-if __FILE__ == $0
-  xs = Excesiv.new
-  xs.test
-end
-

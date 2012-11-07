@@ -1,0 +1,15 @@
+name: excesiv-worker
+
+framework:
+  type: standalone
+  runtime: java
+
+command: java -jar excesiv-worker.jar
+
+services:
+  mongodb-excesiv: mongodb
+
+ignores: [".git"]
+
+instances: 1
+mem: 512
